@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <radialGradient id="fundo" cx="50%" cy="42%" r="70%"><stop offset="0" stop-color="#0B2A18"/><stop offset="1" stop-color="#020B06"/></radialGradient>
+    <radialGradient id="esfera" cx="38%" cy="34%" r="75%"><stop offset="0" stop-color="#14532D"/><stop offset=".65" stop-color="#062113"/><stop offset="1" stop-color="#020B06"/></radialGradient>
+    <radialGradient id="luz" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#4ADE80" stop-opacity=".9"/><stop offset="1" stop-color="#4ADE80" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="url(#fundo)"/>
+  <circle cx="128" cy="134" r="92" fill="#22C55E" opacity=".08"/>
+  <circle cx="128" cy="134" r="84" fill="url(#esfera)" stroke="#22C55E" stroke-opacity=".7" stroke-width="3"/>
+  <!-- globo de pontinhos: meridianos e paralelos feitos de pontos -->
+  <g fill="none" stroke="#4ADE80" stroke-linecap="round" stroke-width="6.5" stroke-dasharray="0.1 12.5">
+    <ellipse cx="128" cy="134" rx="40" ry="84"/>
+    <ellipse cx="128" cy="134" rx="72" ry="84" stroke-opacity=".6"/>
+    <line x1="128" y1="54" x2="128" y2="214"/>
+    <line x1="46" y1="134" x2="210" y2="134"/>
+    <ellipse cx="128" cy="134" rx="84" ry="26" stroke-opacity=".75"/>
+  </g>
+  <!-- o pontinho que pousa num país -->
+  <circle cx="166" cy="98" r="30" fill="url(#luz)"/>
+  <circle cx="166" cy="98" r="19" fill="none" stroke="#86EFAC" stroke-width="3.5" opacity=".85"/>
+  <circle cx="166" cy="98" r="8.5" fill="#ECFDF5"/>
+</svg>

@@ -1,0 +1,15 @@
+# Estado do motor e SEGREDOS (token e chatId do Telegram ficam em dados/config.json): nunca vai para o GitHub
+dados/
+
+# Backups locais de cada fase (o histórico do git faz esse papel aqui)
+versoes/
+
+# Gerado sozinho pelo motor a partir de motor/trazer-brave.cs (compilado no PC com o csc do Windows)
+motor/trazer-brave.exe
+
+# Lixo comum
+*.log
+node_modules/
+.DS_Store
+Thumbs.db
+desktop.ini

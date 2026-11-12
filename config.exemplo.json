@@ -1,0 +1,7 @@
+{
+  "telegram": {
+    "token": "COLE_AQUI_O_TOKEN_DO_BOT",
+    "chatId": "COLE_AQUI_O_SEU_CHAT_ID"
+  },
+  "gpuDedicada": true
+}

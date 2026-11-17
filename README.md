@@ -63,6 +63,23 @@ Não há nada para instalar com `npm`: o projeto não tem dependências.
 - Para ligar junto com o Windows: crie um atalho para `node.exe abrir.js --sem-janela` na pasta *Inicializar* (`shell:startup`).
 - Depois de mudar o código do motor: `node ferramentas/reiniciar-motor.js`.
 
+## Levar para outro computador (um .exe só)
+
+```bash
+node ferramentas/gerar-exe.js
+```
+
+Isso monta o `dist/VigiaGlobal.exe` (~39 MB), que leva **tudo dentro, até o Node**. No outro PC com Windows 10/11, é só abrir o `.exe`:
+- na primeira vez ele se instala em `%LOCALAPPDATA%\VigiaGlobal`;
+- cria os atalhos na Área de Trabalho e no Menu Iniciar;
+- pergunta se o motor deve ligar junto com o Windows;
+- abre o Vigia.
+
+Para atualizar, basta abrir um `.exe` mais novo: os vigiados e a configuração daquele PC continuam. Para tirar, use "Desinstalar Vigia Global" no Menu Iniciar.
+
+- O `.exe` vai **sem** o token do Telegram. Para ter os avisos no outro PC, copie o `dados\config.json` para `%LOCALAPPDATA%\VigiaGlobal\app\dados\` de lá.
+- Como o `.exe` não é assinado, o Windows pode mostrar "O Windows protegeu o computador". Clique em **Mais informações → Executar assim mesmo**.
+
 ## Privacidade e segurança
 
 - Tudo roda **só no seu PC**: o motor escuta apenas em `127.0.0.1`, e nenhum site de fora consegue mandar comandos para ele (os pedidos `POST` conferem a origem).

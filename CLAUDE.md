@@ -186,6 +186,28 @@ Atalhos:
   - câmera inclinada que gira em volta de um ponto fora do país estranha; no mergulho, arrastar tem que deslizar o mapa;
   - a cópia de teste fora da tela só recebe ~11 a 25 `requestAnimationFrame` por segundo, então não serve para medir fluidez, só o custo de cada quadro.
 
+### VigiaGlobal.exe: levar para outro computador (17/11/2026, pedido do dono)
+
+- **O que é:** `dist/VigiaGlobal.exe`, um arquivo só de ~39 MB, que fica fora do git. Roda em Windows 10/11 sem instalar nada.
+  - Dentro vai um `app.zip` com o `node.exe` deste PC, o motor, a janela, a TV, os 175 mapas e as cidades.
+  - **Não vão** `dados/` (token do Telegram, vigiados, histórico), `versoes/`, `relevo/` nem `.git`.
+- **Montar de novo** (depois de mudar o código): `node ferramentas/gerar-exe.js`, uns 6 s.
+  - Usa o `csc.exe` do .NET Framework 4 que vem no Windows para compilar `ferramentas/lancador.cs`, e o `tar.exe` do Windows para fazer o zip.
+  - Cada montagem ganha uma versão nova (`versao.txt`: data, hora e commit).
+- **O que o .exe faz no outro PC** (`lancador.cs`):
+  1. Instala ou atualiza em `%LOCALAPPDATA%\VigiaGlobal\app`, só quando a versão embutida muda. Antes, para o motor que estiver rodando dessa pasta, e nunca mexe na `dados\` de lá.
+  2. Guarda uma cópia de si em `%LOCALAPPDATA%\VigiaGlobal\VigiaGlobal.exe`.
+  3. Na primeira vez, cria atalhos (Área de Trabalho, Menu Iniciar e "Desinstalar Vigia Global") e **pergunta** se o motor liga com o Windows. Se sim, cria um atalho na Inicialização com `--sem-janela`.
+  4. Roda `node abrir.js`.
+  - Opções: `--sem-janela`, `--desinstalar` (pergunta antes) e `--extrair-em <pasta>` (só extrai; para testar).
+- **Telegram no outro PC:** o pacote vai sem o token. Para ter os avisos, é preciso copiar o `dados\config.json` para `%LOCALAPPDATA%\VigiaGlobal\app\dados\` de lá, à mão.
+- **Teste** (17/11/2026, sem mexer no Vigia deste PC):
+  - `--extrair-em` numa pasta temporária;
+  - o `node.exe` do pacote ligou o `servidor.js` na porta 8799 (`VIGIA_PORTA`, que o `servidor.js` e o `abrir.js` aceitam só para teste), e todas as rotas responderam;
+  - a janela abriu na cópia de teste do Edge sem erro;
+  - a parte de instalar (atalhos e a pergunta) **não** foi rodada aqui, para não criar atalhos neste PC.
+- **Avisos ao dono:** o .exe não é assinado, então o Windows pode mostrar "O Windows protegeu o computador" (clicar em "Mais informações" → "Executar assim mesmo"). A janela precisa do Microsoft Edge, que vem no Windows.
+
 ### Globo no estilo do app de rádio (13/11/2026, pedido do dono)
 
 O dono mostrou um vídeo do Instagram (um app de rádio chamado "E4RTH R4DIO": globo verde de pontinhos, borda brilhando, pixel art, caixa de terminal). Das 4 partes oferecidas, ele escolheu duas: **pontinhos de cidade** e **atmosfera + pixel art**. Não quis os contornos dos países nem a caixa de terminal.
@@ -335,6 +357,7 @@ O motor pesa de 45 a 82 MB de RAM e quase 0% de CPU.
   - Mais duas rodadas no relevo (câmera em voo único, estados em destaque). O dono não gostou e pediu **"volta sem relevo"**: voltou o globo de pontinhos.
   - Ficaram o **motor de cor** (tecla `K`) e as correções de engasgo (largura guardada e mapa pedido antes das notícias).
   - **Globo no estilo do app de rádio** (vídeo do Instagram que o dono mostrou): pontinhos mais finos, cidades brilhando (Natural Earth), atmosfera na borda, satélite e disco voador em pixel art.
+- **17/11/2026:** enviado ao GitHub (`209bb65`). **VigiaGlobal.exe** para levar a outro computador (`ferramentas/gerar-exe.js` + `ferramentas/lancador.cs`).
   - Backups: `versoes/*-2026-11-13-com-relevo.*` (a versão com relevo) e `versoes/*-2026-11-13-antes-do-rgb.*`.
 
 ## Ideias que ainda não foram feitas

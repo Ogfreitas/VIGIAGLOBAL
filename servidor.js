@@ -11,7 +11,7 @@ const plantao = require('./motor/plantao');
 const resumo = require('./motor/resumo');
 const tv = require('./motor/tv');
 
-const PORT = 8788, ROOT = __dirname;
+const PORT = +process.env.VIGIA_PORTA || 8788, ROOT = __dirname;      // (VIGIA_PORTA: só para testar sem esbarrar no motor ligado)
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.png': 'image/png', '.ico': 'image/x-icon', '.svg': 'image/svg+xml',

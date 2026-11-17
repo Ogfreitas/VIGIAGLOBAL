@@ -16,3 +16,6 @@ desktop.ini
 
 # Globo em relevo (testado em 12 e 13/11/2026 e desligado a pedido do dono): as curvas ficam só no PC
 relevo/
+
+# O VigiaGlobal.exe montado por ferramentas/gerar-exe.js (~35 MB, leva o Node dentro): fica só no PC
+dist/

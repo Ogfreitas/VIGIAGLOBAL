@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PASTA = __dirname;
-const URL_APP = 'http://localhost:8788';
+const URL_APP = 'http://localhost:' + (+process.env.VIGIA_PORTA || 8788);   // (VIGIA_PORTA: só para testar sem esbarrar no motor ligado)
 const EDGES = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',

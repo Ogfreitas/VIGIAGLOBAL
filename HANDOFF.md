@@ -87,6 +87,7 @@ flowchart LR
 | `motor/brave.js` + `trazer-brave.cs` | Abre o link no Brave e traz a janela dele para a frente. O `.exe` é compilado sozinho no 1º uso pelo `csc.exe` do .NET Framework do Windows (não vai para o git). |
 | `motor/tv.js` | **TV ao vivo:** `LISTA` com 35 países e 68 canais (id `UC…` fixo). `aoVivo(id)` lê `youtube.com/channel/<id>/live` e devolve `videoId`, título, quantos assistem e se toca fora do YouTube. Cache de 10 min (2 min se estava fora do ar). |
 | `estados/XX.json` | Contornos dos estados de 175 países (Natural Earth, domínio público, 3,9 MB). |
+| `ferramentas/gerar-exe.js` · `ferramentas/lancador.cs` | Montam o `dist/VigiaGlobal.exe` (~39 MB, fora do git): um arquivo que leva o Vigia, com o Node dentro, para outro PC com Windows. Ele se instala em `%LOCALAPPDATA%\VigiaGlobal`, cria os atalhos e pergunta se liga com o Windows. Detalhes no `CLAUDE.md`. |
 | `cidades.js` · `ferramentas/gerar-cidades.js` | As 1.251 cidades que brilham no globo (Natural Earth populated places, domínio público, 23 KB) e o script que gera o arquivo. |
 | `ferramentas/gerar-relevo.js` | Do globo em relevo (**desligado** em 13/11/2026): gera curvas de nível a partir do Terrain Tiles (AWS Open Data / Mapzen) na pasta `relevo/`, que fica só no PC (`.gitignore`). Guardado para o caso de o dono querer de volta. |
 | `ferramentas/reiniciar-motor.js` | Para o motor, liga de novo e confere `/api/saude`. |

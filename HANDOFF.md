@@ -87,6 +87,8 @@ flowchart LR
 | `motor/brave.js` + `trazer-brave.cs` | Abre o link no Brave e traz a janela dele para a frente. O `.exe` é compilado sozinho no 1º uso pelo `csc.exe` do .NET Framework do Windows (não vai para o git). |
 | `motor/tv.js` | **TV ao vivo:** `LISTA` com 35 países e 68 canais (id `UC…` fixo). `aoVivo(id)` lê `youtube.com/channel/<id>/live` e devolve `videoId`, título, quantos assistem e se toca fora do YouTube. Cache de 10 min (2 min se estava fora do ar). |
 | `estados/XX.json` | Contornos dos estados de 175 países (Natural Earth, domínio público, 3,9 MB). |
+| `cidades.js` · `ferramentas/gerar-cidades.js` | As 1.251 cidades que brilham no globo (Natural Earth populated places, domínio público, 23 KB) e o script que gera o arquivo. |
+| `ferramentas/gerar-relevo.js` | Do globo em relevo (**desligado** em 13/11/2026): gera curvas de nível a partir do Terrain Tiles (AWS Open Data / Mapzen) na pasta `relevo/`, que fica só no PC (`.gitignore`). Guardado para o caso de o dono querer de volta. |
 | `ferramentas/reiniciar-motor.js` | Para o motor, liga de novo e confere `/api/saude`. |
 | `ferramentas/conferir-tv.js` | Confere se as 68 emissoras estão no ar e tocam fora do YouTube. |
 | `ferramentas/converter-estados.js` | Gera os `estados/*.json` de novo a partir do Natural Earth. |
@@ -123,17 +125,28 @@ Todas ficam em `http://127.0.0.1:8788`. Os `POST` só aceitam `Origin` do própr
 | `GET`/`POST /api/vigiados` · `POST /api/vigiados/testar` | Lê e grava os vigiados · manda um aviso de teste |
 | `POST /api/abrir` `{link}` | Abre no Brave. Só aceita links que passam por `linkSeguro` (manchetes conhecidas e `youtube.com/watch?v=<id>`) |
 | `GET /api/tv` · `GET /api/tv/aovivo?c=<UC…>[&denovo=1]` | Lista de emissoras · o vídeo ao vivo de um canal (só canais da lista) |
+| `GET /api/quadros` | `{BR: [lon, lat, raio], ...}`: o enquadramento de cada país, para a câmera do mergulho |
 | `/`, `/tv`, `/estados/XX.json`, ícones | Arquivos públicos. Qualquer outro caminho devolve 404 |
 
 ## 6. A janela (`vigia-global.html`)
 
-- **Globo:** projeção ortográfica com ~10.700 pontos em canvas, desenhados em "baldes" por profundidade, luz (dia e noite) e calor (`BALDES`). Tem chuva Matrix, varredura e viagem automática entre países.
-- **Quadros por segundo controlados:** 30 em uso, 12 com outro programa na frente, 60 arrastando e 0 minimizado. No modo leve, 20 e 6. Os efeitos de DOM andam no mesmo relógio do globo (`efeito()` / `rodarEfeitos()` / `animacoesPequenas`).
+- **Globo:** projeção ortográfica com ~31.500 pontos em canvas, desenhados em "baldes" por profundidade, luz (dia e noite) e calor (`BALDES`).
+  - Os pontos são a grade de terra a cada 0,8° mais as cidades de `cidades.js`, em aglomerados claros (`PCI`, `B_CID`).
+  - Tem atmosfera na borda, satélite e disco voador em pixel art (`SPRITES`, `desenharSatelite`, `desenharMarcador`), chuva Matrix, varredura e viagem automática entre países.
+  - Um **globo em relevo** (curvas de nível do relevo real) foi testado em 12 e 13/11/2026 e desligado a pedido do dono. A versão completa está guardada em `versoes/vigia-global-2026-11-13-com-relevo.html`, com a pasta `relevo/` (fora do git) e o `ferramentas/gerar-relevo.js`. As lições estão no `CLAUDE.md`.
+- **Quadros por segundo controlados:**
+  - em uso, 30; com outro programa na frente, 12; minimizado, 0;
+  - 60 arrastando, mergulhando ou com o mouse passando pelo globo;
+  - no modo leve, 20 e 6.
+  - Os efeitos de DOM andam no mesmo relógio do globo (`efeito()` / `rodarEfeitos()` / `animacoesPequenas`).
+  - **Nunca leia `offsetWidth`/`clientWidth` dentro do quadro:** use `largura()` (`ResizeObserver`). Ler a cada quadro forçava o navegador a recalcular a página e engasgava.
 - **Fase 1 (portal ao vivo):** ping de notícia nova (`/api/aovivo`), marca `[JP]` na borda, etiqueta de alvo, plantão com câmera (`girarAte`) e teletipo, selo de tempo (`selo()`), cartão "enquanto você estava fora" e separadores de hora no AO VIVO.
 - **Fase 2 (credibilidade):** "visto em" (`vistoEmEl`), dia e noite (`calcularLuz`, `posicaoDoSol`), hora local com a capital (`CAPITAL`, `horaLocal`), relógios no topo, ajuda `?` e **arcos entre países (prontos, mas desligados)**.
 - **Mergulho:** ao clicar num país, carrega `estados/XX.json`, desenha os estados com efeito de radar e busca as notícias do estado.
+  - O mapa é pedido antes das 15 buscas de notícias do painel e já começa a carregar com o mouse parado 250 ms em cima do país (`preCarga`). O navegador só abre 6 conexões por vez.
 - **TV:** `abrirTV(cod)` reaproveita a janela `vigia-tv` (`window.open('', 'vigia-tv', …)`). Se ela já está aberta, só troca o `#BR`.
-- **O que fica salvo no navegador** (`localStorage`): `vigia.leve`, `vigia.som`, `vigia.filtro`, `vigia.calor`, `vigia.arcos`, `vigia.relogios`, `vigia.tv`, `vigia.ultimaVisita`, `vigia.vistoAte`, `vigia.plantoes`, `vigia.resumoVisto`, `vigia.aovivoAba` e `vigia.aovivoVisto`.
+- **Motor de cor** (tecla `K`, `<script>` no `<head>`): troca só os verdes da interface pelo matiz escolhido, no CSS (texto do `<style>` reescrito) e no canvas (setters de `fillStyle`/`strokeStyle` passam por `corTema`). Plantão, vigiados, calor e cores de assunto não mudam. A TV segue a mesma cor (`vigia.cor`).
+- **O que fica salvo no navegador** (`localStorage`): `vigia.cor` (cor da interface), `vigia.leve`, `vigia.som`, `vigia.filtro`, `vigia.calor`, `vigia.arcos`, `vigia.relogios`, `vigia.tv`, `vigia.ultimaVisita`, `vigia.vistoAte`, `vigia.plantoes`, `vigia.resumoVisto`, `vigia.aovivoAba` e `vigia.aovivoVisto`.
 
 ### TV ao vivo (`tv.html` + `motor/tv.js`)
 
@@ -176,7 +189,7 @@ Ela é criada sozinha. Num PC novo, só o `config.json` precisa ser feito à mã
    | Âmbar | Vigiado |
    | Ciano | Natureza (Fase 3) |
 
-4. **Teclas:** confira se a tecla está livre antes de usar. `H` está reservada para o replay (Fase 3) e `F` para o modo TV (Fase 4).
+4. **Teclas:** confira se a tecla está livre antes de usar. `K` é o motor de cor. `H` está reservada para o replay (Fase 3) e `F` para o modo TV (Fase 4).
 5. **Plano:** uma fase de `melhorias-portal.md` por vez, e só com a aprovação do dono.
 6. **Backup:** antes de uma mudança grande, copie os arquivos para `versoes/arquivo-AAAA-MM-DD-antes-do-X.ext`. Com o git, um commit antes também serve.
 7. **Edição do HTML grande:** leia o trecho antes e edite com uma ferramenta de edição exata. `sed`, heredoc e `node -e` já comeram barras invertidas de regex.
@@ -199,6 +212,7 @@ Ela é criada sozinha. Num PC novo, só o `config.json` precisa ser feito à mã
 
 **Pronto:**
 - globo;
+- motor de cor (tecla `K`);
 - notícias por país e estado, com 15 assuntos;
 - Termômetro, Vigiados, Plantão, AO VIVO e Resumo do dia;
 - avisos do Windows e do Telegram;

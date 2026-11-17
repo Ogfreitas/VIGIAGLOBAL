@@ -57,6 +57,8 @@ Atalhos:
 | `motor/brave.js` + `trazer-brave.exe` | Abre as notícias no navegador Brave do dono e traz a janela dele para a frente. |
 | `motor/tv.js` | **TV ao vivo**: a lista `LISTA` (35 países, 68 emissoras, por região; a primeira de cada país é a principal) com o id fixo do canal no YouTube (`UC…`). `aoVivo(id)` lê a página `youtube.com/channel/<id>/live` e devolve o vídeo que está no ar (`videoId`, título, quantos assistem, se deixa tocar fora do YouTube). Só procura quando alguém escolhe a emissora e guarda 10 min (2 min se estava fora do ar). |
 | `tv.html` | A janela da TV (em `/tv`), no visual do Vigia: player grande, lista de países e emissoras à direita, busca e teclas. |
+| `relevo/` e `ferramentas/gerar-relevo.js` | Curvas de nível do globo em relevo, **testado em 12 e 13/11/2026 e desligado** (veja "Globo em relevo"). A pasta `relevo/` (16,5 MB) fica só no PC e está no `.gitignore`. O gerador fica guardado para o caso de o dono querer de volta. |
+| `cidades.js` | As 1.251 cidades que brilham no globo (`const CIDADES = [[lon, lat, mil habitantes], ...]`, 23 KB), do Natural Earth 50m populated places (domínio público). Carregado por `<script src>` antes do script principal. Gerado por `ferramentas/gerar-cidades.js <ne_50m_populated_places_simple.geojson>`. |
 | `estados/XX.json` | Contornos dos estados de 175 países (Natural Earth admin-1, domínio público, 3,9 MB). Países muito picados foram agrupados por região (Reino Unido por nação, França, Itália, Espanha…). |
 | `ferramentas/converter-estados.js` | Gera os `estados/*.json` de novo a partir do arquivo do Natural Earth. |
 | `ferramentas/reiniciar-motor.js` | Reinicia o motor e confere se voltou. |
@@ -80,6 +82,7 @@ Atalhos:
 - `GET`/`POST /api/vigiados`
 - `POST /api/vigiados/testar`
 - `POST /api/abrir` (abre o link no Brave; aceita manchetes e, desde a TV, o endereço de um vídeo do YouTube `watch?v=` e nada mais)
+- `/relevo/mundo.json`, `/relevo/XX.json` e `GET /api/quadros`: continuam no motor, mas a janela não usa mais (eram do globo em relevo, que foi desligado)
 - `/tv` (a janela da TV), `GET /api/tv` (lista de emissoras), `GET /api/tv/aovivo?c=<id do canal>[&denovo=1]` (só canais da lista)
 
 ## O que a janela tem
@@ -163,6 +166,53 @@ Atalhos:
   - Os arcos decorativos aleatórios antigos (`novoArco`) continuam e podem ser confundidos com os de verdade.
 - **Detecção de país:** o tradutor às vezes escreve em português de Portugal, então "Irão" e "Benim" foram acrescentados em `paises-texto.js`.
 
+### Globo em relevo (12 e 13/11/2026): testado e DESLIGADO
+
+- **O que foi testado:** o dono pediu o globo no estilo do fundo "Topography" do React Bits. Foram feitas 4 rodadas:
+  - curvas de nível do relevo real (Terrain Tiles da AWS);
+  - câmera inclinada com o relevo subindo em 3D;
+  - um "voo" único da câmera;
+  - menos linhas, com os estados em destaque.
+- **Por que saiu:** o dono achou que ficou "cheio de linhas", que não dava para ver os estados e que a câmera ficou estranha. Em 13/11/2026 ele pediu **"volta sem relevo"**.
+- **O que voltou:** o globo de pontinhos e o mergulho de cima, com a câmera de antes (o `vigia-global.html` voltou de `versoes/vigia-global-2026-11-12-antes-do-relevo.html`).
+- **O que ficou do trabalho:**
+  - o **motor de cor** (abaixo);
+  - três correções de engasgo, que não dependem do relevo:
+    - a largura dos painéis vem de um `ResizeObserver` (`largura()`) e o tamanho da tela do `ResizeObserver` do hero. Antes, ler `offsetWidth`/`clientWidth` a cada quadro forçava o navegador a recalcular a página enquanto as notícias chegavam;
+    - o mapa dos estados é pedido **antes** das 15 buscas de notícias e já começa a carregar com o mouse parado 250 ms em cima do país (`preCarga`). O navegador só abre 6 conexões por vez, e atrás das notícias o mapa demorava ~1 s; agora chega em ~20 ms;
+    - com o mouse passando pelo globo, ele roda a 60 quadros por segundo (`mouseNoGloboAte`).
+- **Se o dono quiser o relevo de volta:** a versão completa está em `versoes/vigia-global-2026-11-13-com-relevo.html` e `versoes/servidor-2026-11-13-com-relevo.js`, mais a pasta `relevo/` e o `ferramentas/gerar-relevo.js`. A descrição técnica inteira está em `versoes/CLAUDE-2026-11-13-com-relevo.md`. Lições:
+  - linhas demais escondem o que importa: as divisas precisam ser o destaque;
+  - câmera inclinada que gira em volta de um ponto fora do país estranha; no mergulho, arrastar tem que deslizar o mapa;
+  - a cópia de teste fora da tela só recebe ~11 a 25 `requestAnimationFrame` por segundo, então não serve para medir fluidez, só o custo de cada quadro.
+
+### Globo no estilo do app de rádio (13/11/2026, pedido do dono)
+
+O dono mostrou um vídeo do Instagram (um app de rádio chamado "E4RTH R4DIO": globo verde de pontinhos, borda brilhando, pixel art, caixa de terminal). Das 4 partes oferecidas, ele escolheu duas: **pontinhos de cidade** e **atmosfera + pixel art**. Não quis os contornos dos países nem a caixa de terminal.
+- **Pontinhos:**
+  - A terra ficou mais fina e densa: grade de 0,8° (era 1,05°), pontos menores e mais apagados.
+  - Por cima vão as **cidades** (`cidades.js`: 1.251 cidades do Natural Earth 50m populated places, domínio público, gerado por `ferramentas/gerar-cidades.js`). Cada cidade vira um aglomerado de 3 a ~22 pontinhos claros, num raio que cresce com a população, com sorteio fixo.
+  - `PCI` marca os pontos de cidade, que vão nos baldes `B_CID` (cor `COR_CID`). Cidade continua acesa à noite (mínimo de 55% do brilho) e não aparece no lado de trás do globo.
+  - Ficam ~31.500 pontos (eram 10.700). O desenho subiu de ~1,3 para ~2 ms por quadro.
+- **Atmosfera:** um anel de luz na borda do globo (gradiente radial de 0,93r a 1,14r) mais uma linha clara em r. No modo leve, só a linha.
+- **Pixel art** (`SPRITES`, `sprite()`, `colarSprite()`): desenhos de pixel pintados num canvas pequeno, que passam pelo motor de cor, e colados sem suavizar, com cada pixel inteiro na tela.
+  - **Satélite** (`desenharSatelite`): órbita inclinada em volta do globo, uma volta a cada ~50 s, com o caminho pontilhado bem fraco. Atrás do globo ele some. Não aparece no modo leve nem no mergulho.
+  - **Disco voador:** no lugar dos cantinhos do cursor da viagem automática (`desenharMarcador`). Viaja na ponta do arco e, ao chegar, paira sobre o país balançando de leve, com as luzes piscando e um facho de luz até o ponto.
+- O motor serve o `cidades.js` (está em `PUBLICOS`).
+
+### Motor de cor (13/11/2026, pedido do dono: "um motor RGB para mudar a cor da interface toda")
+
+- **Como usar:** botão "🎨 Cor da interface" no menu da esquerda, ou tecla `K`. Abre uma caixa ao lado com 7 cores prontas (Verde, Ciano, Azul, Anil, Roxo, Rosa, Branco), uma barra com todas as cores e "voltar ao verde". Esc fecha.
+- **Como funciona** (`<script>` no `<head>` do `vigia-global.html`, antes de tudo):
+  - **Só os verdes mudam** (matiz entre 95° e 170°). O matiz gira de 142° (o `#4ADE80`) para o escolhido, mantendo saturação e claridade. "Branco" zera a saturação.
+  - Vermelho do plantão, âmbar dos vigiados, amarelo/laranja do calor e as cores dos assuntos que não são verdes **não mudam**.
+  - CSS: o texto do `<style>` é reescrito (`trocarCores`).
+  - Canvas (globo, chuva, rótulos): os setters de `fillStyle`, `strokeStyle` e `shadowColor` e o `addColorStop` passam por `corTema`, com cache.
+  - `CSSStyleDeclaration.setProperty` também passa (as `--c` dos botões). Cor posta direto em `style.color` precisa de `corTema(...)` à mão; hoje isso vale no selo de tempo e no realce do AO VIVO.
+  - Com o verde original, `temaLigado` é falso e nada passa pela troca (custo zero).
+- **Onde fica:** `localStorage` `vigia.cor = {h, s}`. A janela da TV (`tv.html`) lê a mesma chave e muda ao vivo (evento `storage`).
+- **Cuidado:** um matiz perto do vermelho (0°) ou do âmbar (40°) confunde com o plantão e os vigiados. As cores prontas evitam essa faixa; a barra deixa o dono escolher.
+
 ### TV ao vivo (09/11/2026, pedido do dono, fora das fases do plano)
 
 - **O que é:** os canais de notícia de cada país ao vivo, numa janela à parte no visual do Vigia. Só transmissões oficiais no YouTube, de canal verificado e liberadas para tocar fora do YouTube.
@@ -183,7 +233,7 @@ Limites de quadros por segundo:
 |---|---|---|
 | Em uso | 30 | 20 |
 | Em outro programa | 12 | 6 |
-| Arrastando ou dando zoom | 60 | 60 |
+| Arrastando, dando zoom, mergulhando ou mouse passando pelo globo (o mouse desde 13/11/2026) | 60 | 60 |
 | Minimizado ou coberto | 0 | 0 |
 
 - O modo leve também tira a chuva Matrix e a varredura, desenha em resolução normal (DPR 1) e não desenha os pontos do lado de trás do globo.
@@ -278,7 +328,14 @@ O motor pesa de 45 a 82 MB de RAM e quase 0% de CPU.
 - **09/11/2026:**
   - **TV ao vivo** (pedido do dono): janela à parte com 68 emissoras de 35 países, tecla `N` e botão "▶ TV" no painel do país. Os arcos continuam desligados e a Fase 3 continua esperando a aprovação.
   - **Termômetro parado depois de ligar o PC** (corrigido): o motor liga junto com o Windows e o termômetro media 3 s depois, antes de o Wi-Fi conectar. A medição falhava e só tentava de novo 15 min depois, com a caixa vazia. Agora tenta de novo logo (30 s, 1 min, 2 min, 5 min…) e já mostra a última medição guardada. Os Vigiados também conferem de novo em 2 min. As linhas de erro do termômetro no `motor.log` agora têm a hora.
-- **12/11/2026:** o projeto foi para o GitHub (`Ogfreitas/VIGIAGLOBAL`, público), com `README.md` e `HANDOFF.md`.
+- **12/11/2026:**
+  - O projeto foi para o GitHub (`Ogfreitas/VIGIAGLOBAL`, público), com `README.md` e `HANDOFF.md`.
+  - **Globo em relevo** (pedido do dono): testado (curvas de nível do relevo real). Backups em `versoes/*-2026-11-12-antes-do-relevo.*`.
+- **13/11/2026:**
+  - Mais duas rodadas no relevo (câmera em voo único, estados em destaque). O dono não gostou e pediu **"volta sem relevo"**: voltou o globo de pontinhos.
+  - Ficaram o **motor de cor** (tecla `K`) e as correções de engasgo (largura guardada e mapa pedido antes das notícias).
+  - **Globo no estilo do app de rádio** (vídeo do Instagram que o dono mostrou): pontinhos mais finos, cidades brilhando (Natural Earth), atmosfera na borda, satélite e disco voador em pixel art.
+  - Backups: `versoes/*-2026-11-13-com-relevo.*` (a versão com relevo) e `versoes/*-2026-11-13-antes-do-rgb.*`.
 
 ## Ideias que ainda não foram feitas
 

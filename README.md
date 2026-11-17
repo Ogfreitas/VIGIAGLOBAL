@@ -20,7 +20,7 @@ Você gira o globo, clica num país e vê as notícias dele. Ele também mostra 
 
 | Função | O que faz | Tecla |
 |---|---|---|
-| **Globo** | Globo 3D de pontos com chuva Matrix, dia e noite e relógios. Quando ninguém mexe, viaja sozinho de país em país mostrando manchetes. | arrastar / rodinha |
+| **Globo** | Globo 3D de pontinhos finos, com as **cidades brilhando** (mais fortes onde tem mais gente), borda iluminada, um satélite em pixel art orbitando, chuva Matrix, dia e noite e relógios. Quando ninguém mexe, um disco voador em pixel viaja sozinho de país em país mostrando manchetes. | arrastar / rodinha |
 | **Notícias do país** | Clique num país: as notícias aparecem e a câmera "mergulha" nele, desenhando os estados. Clique num estado para ver as notícias de lá. | clique, `Esc` volta |
 | **15 assuntos** | Economia, Mercados, Cripto, Geopolítica, Política, Tecnologia e IA, Energia, Commodities, Clima, Saúde, Conflitos, Justiça, Ciência, Migração e Religião. | `1`–`0`, `G J E M R`, `T` = tudo |
 | **Termômetro** | Pinta os países pelo volume de notícias das últimas 24 h e lista os mais quentes. | `C` |
@@ -30,6 +30,7 @@ Você gira o globo, clica num país e vê as notícias dele. Ele também mostra 
 | **Resumo do dia** | As maiores histórias do dia, que abre sozinho uma vez por dia. | `D` |
 | **TV ao vivo** | Janela verde à parte com as emissoras de notícia ao vivo de cada país. | `N` |
 | **Modo leve** | Menos quadros por segundo e sem chuva Matrix, para gastar menos. | `L` |
+| **Cor da interface** | Troca o verde da interface inteira, inclusive a janela da TV, por outra cor (ciano, azul, roxo, rosa, branco ou qualquer cor da barra). O vermelho do plantão e o âmbar dos vigiados não mudam. | `K` |
 | **Ajuda** | Mostra todas as teclas. | `?` |
 
 Na janela da TV: `↑ ↓` muda de país, `← →` muda de emissora, `M` liga e desliga o som e `/` busca.
@@ -80,7 +81,7 @@ Não há nada para instalar com `npm`: o projeto não tem dependências.
 
 - **Notícias:** Google Notícias (RSS público), Reddit r/worldnews, BBC World, Al Jazeera, g1, CNN Brasil e DW Brasil.
 - **Tradução das manchetes em inglês:** o tradutor público do Google.
-- **Mapas dos estados:** [Natural Earth](https://www.naturalearthdata.com/) admin-1 (domínio público).
+- **Mapas dos estados e cidades:** [Natural Earth](https://www.naturalearthdata.com/) admin-1 e populated places (domínio público).
 - **TV ao vivo:** as transmissões oficiais das próprias emissoras no YouTube, tocadas pelo player oficial (`youtube-nocookie.com`).
 
 Projeto pessoal, feito para uso próprio.

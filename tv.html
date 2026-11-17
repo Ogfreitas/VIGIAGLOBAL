@@ -89,6 +89,34 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .rodape kbd{color:var(--dim)}
 @media(max-width:820px){body{grid-template-columns:1fr;grid-template-rows:auto auto minmax(0,1fr)}aside{border-left:0;border-top:1px solid var(--line)}main{padding:14px 16px}}
 </style>
+<script>
+// MOTOR DE COR: a mesma cor escolhida na janela do globo (localStorage vigia.cor; veja vigia-global.html).
+// Só os verdes mudam; o âmbar dos avisos continua. Muda ao vivo quando a cor é trocada na outra janela.
+(() => {
+  const BASE = 142, estilo = document.querySelector('style'), original = estilo.textContent;
+  const RE = /#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b|rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/g;
+  const hsl = (r, g, b) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn; if (!d) return [0, 0, l];
+    const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [(h * 60 + 360) % 360, d / (1 - Math.abs(2 * l - 1)), l]; };
+  const rgb = (h, s, l) => { const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+    const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+    return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)]; };
+  function aplicar() {
+    let t = null; try { t = JSON.parse(localStorage.getItem('vigia.cor') || 'null'); } catch { }
+    const H = t && isFinite(t.h) ? ((+t.h % 360) + 360) % 360 : BASE, S = t && t.s === 0 ? 0 : 1;
+    if (Math.abs(H - BASE) < 0.5 && S === 1) { estilo.textContent = original; return; }
+    estilo.textContent = original.replace(RE, (m, hex, r, g, b, a) => {
+      let R, G, B;
+      if (hex) { const hx = hex.length === 3 ? hex.replace(/./g, x => x + x) : hex, n = parseInt(hx, 16); R = n >> 16; G = (n >> 8) & 255; B = n & 255; } else { R = +r; G = +g; B = +b; }
+      const [h, s, l] = hsl(R, G, B);
+      if (h < 95 || h > 170 || s < 0.04) return m;
+      const [r2, g2, b2] = rgb(((h - BASE + H) % 360 + 360) % 360, s * S, l);
+      return hex ? '#' + ((1 << 24) | (r2 << 16) | (g2 << 8) | b2).toString(16).slice(1) : `rgba(${r2},${g2},${b2},${a === undefined ? 1 : a})`;
+    });
+  }
+  aplicar();
+  addEventListener('storage', e => { if (e.key === 'vigia.cor') aplicar(); });
+})();
+</script>
 </head>
 <body>
 <header class="topo">

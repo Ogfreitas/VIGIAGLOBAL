@@ -341,6 +341,17 @@ body{color:var(--txt);font:15px/1.5 var(--font)}
 .tv-btn:hover{border-color:rgba(74,222,128,.75);background:rgba(10,40,22,.8)}
 .tv-btn:focus-visible{outline-color:#4ADE80}
 .tv-btn kbd{color:#3F6B52}
+/* motor de cor (tecla K) */
+.cor-box{position:absolute;left:calc(100% + 12px);bottom:0;width:236px;padding:10px 12px 11px;border-radius:9px;border:1px solid rgba(74,222,128,.3);background:rgba(3,14,8,.96);color:#BBF7D0;font:12px/1.3 var(--font);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.cor-box[hidden]{display:none}
+.cor-tit{font:700 10px/1 Consolas,monospace;letter-spacing:.14em;color:#688776;margin-bottom:9px}
+.cor-amostras{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px}
+.cor-amostras button{width:24px;height:24px;padding:0;border-radius:50%;border:2px solid rgba(255,255,255,.14);cursor:pointer}
+.cor-amostras button.on{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.22)}
+#corMatiz{width:100%;height:10px;margin:0;border-radius:5px;-webkit-appearance:none;appearance:none;outline:none;cursor:pointer}
+#corMatiz::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #000;box-shadow:0 0 6px rgba(0,0,0,.6)}
+.cor-pe{display:flex;justify-content:space-between;align-items:center;margin-top:9px;color:#688776;font:11px/1 Consolas,monospace}
+.cor-pe button{padding:0;border:0;background:none;color:#86EFAC;font:inherit;text-decoration:underline;cursor:pointer}
 .estrela.tv{border-color:rgba(74,222,128,.4);background:rgba(4,22,12,.5);color:#BBF7D0}
 .estrela.tv:hover{border-color:rgba(74,222,128,.8)}
 .detalhe.res header>i{background:#FBBF24;box-shadow:0 0 10px #FBBF24}
@@ -381,6 +392,66 @@ body{color:var(--txt);font:15px/1.5 var(--font)}
 #alertas li.vig{color:#E7DFA8}
 
 </style>
+<script>
+// ---------- MOTOR DE COR (13/11/2026, pedido do dono) ----------
+// Troca o verde da interface inteira (CSS, globo, chuva Matrix, textos) por outra cor: tecla K ou botão "🎨 Cor".
+// Só os VERDES mudam (matiz entre 95° e 170°): o vermelho do plantão, o âmbar dos vigiados, o amarelo/laranja do calor
+// e as cores dos assuntos que não são verdes ficam como estão. Gira o matiz e guarda claro/escuro, então a interface
+// continua com o mesmo contraste. Fica em localStorage vigia.cor = { h: matiz 0-359, s: 1 (cor) ou 0 (branco) };
+// a janela da TV lê a mesma chave. O canvas passa pela troca nos setters de fillStyle/strokeStyle (com cache).
+const TEMA = { h: 142, s: 1 }, COR_BASE = 142;          // 142° = o verde #4ADE80 do Vigia
+try { const t = JSON.parse(localStorage.getItem('vigia.cor') || 'null'); if (t && isFinite(t.h)) { TEMA.h = ((+t.h % 360) + 360) % 360; TEMA.s = t.s === 0 ? 0 : 1; } } catch { }
+let temaLigado = false;
+const RE_COR = /#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b|rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/g;
+function hslDe(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [(h * 60 + 360) % 360, s, l];
+}
+function rgbDe(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+}
+function trocarCores(texto) {
+  return texto.replace(RE_COR, (m, hex, r, g, b, a) => {
+    let R, G, B;
+    if (hex) { const hx = hex.length === 3 ? hex.replace(/./g, x => x + x) : hex, n = parseInt(hx, 16); R = n >> 16; G = (n >> 8) & 255; B = n & 255; }
+    else { R = +r; G = +g; B = +b; }
+    const [h, s, l] = hslDe(R, G, B);
+    if (h < 95 || h > 170 || s < 0.04) return m;                       // não é verde do tema: fica igual
+    const [r2, g2, b2] = rgbDe(((h - COR_BASE + TEMA.h) % 360 + 360) % 360, s * TEMA.s, l);
+    return hex ? '#' + ((1 << 24) | (r2 << 16) | (g2 << 8) | b2).toString(16).slice(1) : `rgba(${r2},${g2},${b2},${a === undefined ? 1 : a})`;
+  });
+}
+const corCache = new Map();
+function corTema(c) {
+  if (!temaLigado || typeof c !== 'string') return c;
+  let v = corCache.get(c);
+  if (v === undefined) { if (corCache.size > 5000) corCache.clear(); v = trocarCores(c); corCache.set(c, v); }
+  return v;
+}
+(() => {                                                           // tudo o que o canvas pinta passa pela troca
+  const P = CanvasRenderingContext2D.prototype;
+  for (const prop of ['fillStyle', 'strokeStyle', 'shadowColor']) {
+    const d = Object.getOwnPropertyDescriptor(P, prop); if (!d || !d.set) continue;
+    Object.defineProperty(P, prop, { configurable: true, enumerable: d.enumerable, get: d.get, set(v) { d.set.call(this, temaLigado && typeof v === 'string' ? corTema(v) : v); } });
+  }
+  const ac = CanvasGradient.prototype.addColorStop;
+  CanvasGradient.prototype.addColorStop = function (o, c) { return ac.call(this, o, temaLigado ? corTema(c) : c); };
+  const sp = CSSStyleDeclaration.prototype.setProperty;          // (as variáveis --c dos botões, postas pelo JS)
+  CSSStyleDeclaration.prototype.setProperty = function (n, v, p) { return sp.call(this, n, temaLigado && typeof v === 'string' ? corTema(v) : v, p); };
+})();
+const estiloEl = document.querySelector('style'), cssOriginal = estiloEl.textContent;
+function aplicarTema() {
+  temaLigado = Math.abs(TEMA.h - COR_BASE) > 0.5 || TEMA.s !== 1; corCache.clear();
+  estiloEl.textContent = temaLigado ? trocarCores(cssOriginal) : cssOriginal;
+}
+aplicarTema();
+</script>
 </head>
 <body>
 <main class="globo-hero" id="hero" aria-label="Vigia Global: notícias do mundo por país">
@@ -397,6 +468,13 @@ body{color:var(--txt);font:15px/1.5 var(--font)}
     <button type="button" class="vig-btn ao-btn" id="aoBtn" title="Tudo o que as fontes rápidas trouxeram nas últimas horas, o mais novo em cima"><i></i>Ao vivo <span class="badge" id="aoBadge" hidden></span><kbd>A</kbd></button>
     <button type="button" class="vig-btn res-btn" id="resBtn" title="As histórias que mais fontes deram nas últimas 24 h">☀ Resumo do dia <kbd>D</kbd></button>
     <button type="button" class="vig-btn tv-btn" id="tvBtn" title="Os canais de notícia de cada país ao vivo (só transmissões oficiais), numa janela à parte">▶ TV ao vivo <kbd>N</kbd></button>
+    <button type="button" class="vig-btn tv-btn" id="corBtn" title="Muda a cor da interface inteira (o vermelho do plantão e o âmbar dos vigiados continuam)">🎨 Cor da interface <kbd>K</kbd></button>
+    <div class="cor-box" id="corBox" hidden>
+      <div class="cor-tit">COR DA INTERFACE</div>
+      <div class="cor-amostras" id="corAmostras"></div>
+      <input type="range" id="corMatiz" min="0" max="359" step="1" aria-label="Cor (matiz)">
+      <div class="cor-pe"><span id="corNome"></span><button type="button" id="corPadrao">voltar ao verde</button></div>
+    </div>
   </nav>
   <div class="hh hh-calor" id="calorBox">
     <div class="hh-tit">TERMÔMETRO · 24 H <button type="button" id="calorLiga" title="Liga/desliga as cores de calor no globo (tecla C)">C · LIGADO</button></div>
@@ -421,6 +499,7 @@ body{color:var(--txt);font:15px/1.5 var(--font)}
   <div id="boot" class="boot" title="Clique para pular"><pre id="bootTxt"></pre><small>clique para pular</small></div>
 </main>
 
+<script src="cidades.js"></script><!-- as cidades que brilham no globo (Natural Earth; ferramentas/gerar-cidades.js) -->
 <script>
 // ================= Vigia Global =================
 // Mapa-múndi de pontinhos (Natural Earth, domínio público) que abre reto e se enrola no globo. Gira sozinho, dá para
@@ -480,7 +559,7 @@ function pintarSelo(s) {
   if (!s.dataset.q || !isFinite(min)) { s.textContent = ''; return; }
   s.textContent = min < 2 ? 'agora' : min < 60 ? `há ${Math.round(min)} min` : min < 48 * 60 ? `há ${Math.round(min / 60)} h` : `há ${Math.round(min / 1440)} dias`;
   const [cor, op] = min < 15 ? ['#BBF7D0', 1] : min < 60 ? ['#86EFAC', 0.85] : min < 180 ? ['#6FAE8A', 0.72] : min < 720 ? ['#5E8C74', 0.6] : ['#567A67', 0.5];
-  s.style.color = cor; s.style.opacity = op;
+  s.style.color = corTema(cor); s.style.opacity = op;
 }
 setInterval(() => { for (const s of document.querySelectorAll('.selo')) pintarSelo(s); }, 60e3);
 // "visto em GB QA BR": de quais países vem a cobertura da história (o motor tira do veículo; sem certeza, fica de fora)
@@ -561,22 +640,41 @@ function horaEm(tz, d = new Date()) {
 const periodoDoDia = h => h < 6 ? 'madrugada' : h < 12 ? 'manhã' : h < 18 ? 'tarde' : 'noite';
 // os que o pontinho visita sozinho (onde sempre tem notícia de mercado); clicando, vale qualquer país
 const MAIORES = new Set('US CA MX SV CO BR AR CL PE GB PT ES FR DE NL CH IT PL SE NO UA RU TR IL EG SA AE QA IR NG KE ZA IN CN KR JP TW TH VN PH ID AU NZ'.split(' '));
-// pontinhos de terra: fileiras de latitude, com o mesmo espaçamento em toda a esfera
-const PT = [];
-for (let i = 0, lat = -82; lat <= 83.5; lat += 1.05, i++) {
-  const n = Math.max(1, Math.round(360 * Math.cos(lat * D2R) / 1.05));
-  for (let k = 0; k < n; k++) { const lon = -180 + (k + (i % 2) * 0.5) * 360 / n, v = valorEm(lon, lat); if (v) PT.push([lon, lat, v]); }
+// pontinhos de terra: fileiras de latitude, com o mesmo espaçamento em toda a esfera. 13/11/2026 (o dono mostrou um app
+// de rádio com o globo assim): mais finos e densos (0,8° em vez de 1,05°) e, por cima, as CIDADES (cidades.js, Natural
+// Earth): cada cidade vira um aglomerado de pontinhos claros, maior quanto mais gente; a Europa, a Índia e a costa dos
+// EUA brilham mais. PCI marca os pontos de cidade.
+const PT = [], PASSO_PT = 0.8;
+for (let i = 0, lat = -82; lat <= 83.5; lat += PASSO_PT, i++) {
+  const n = Math.max(1, Math.round(360 * Math.cos(lat * D2R) / PASSO_PT));
+  for (let k = 0; k < n; k++) { const lon = -180 + (k + (i % 2) * 0.5) * 360 / n, v = valorEm(lon, lat); if (v) PT.push([lon, lat, v, 0]); }
+}
+if (typeof CIDADES !== 'undefined') {
+  let sem = 7; const sorte = () => { sem = (sem * 1664525 + 1013904223) >>> 0; return sem / 4294967296; };   // sorteio fixo
+  for (const [lon, lat, mil] of CIDADES) {
+    const q = Math.max(0, Math.log10(Math.max(mil, 20) / 20));            // 20 mil hab. → 0 · 20 milhões → 3
+    const n = Math.round(3 + q * 6), raio = 0.22 + q * 0.38, vc = valorEm(lon, lat) || 1;      // de 3 a ~22 pontinhos
+    for (let j = 0; j < n; j++) {
+      const a = sorte() * TAU, d = j ? raio * Math.sqrt(sorte()) : 0;
+      const la = lat + d * Math.sin(a), lo = lon + d * Math.cos(a) / Math.max(0.2, Math.cos(lat * D2R));
+      PT.push([lo, la, valorEm(lo, la) || vc, 1]);
+    }
+  }
 }
 const NP = PT.length, PX = new Float32Array(NP), PY = new Float32Array(NP), PZ = new Float32Array(NP);
-const PLON = new Float32Array(NP), PLAT = new Float32Array(NP), PV = new Uint8Array(NP), PR = new Float32Array(NP);
-PT.forEach(([lon, lat, v], i) => { const p = vetor(lon, lat); PX[i] = p.X; PY[i] = p.Y; PZ[i] = p.Z; PLON[i] = lon; PLAT[i] = lat; PV[i] = v; PR[i] = Math.random(); });
+const PLON = new Float32Array(NP), PLAT = new Float32Array(NP), PV = new Uint8Array(NP), PR = new Float32Array(NP), PCI = new Uint8Array(NP);
+PT.forEach(([lon, lat, v, c], i) => { const p = vetor(lon, lat); PX[i] = p.X; PY[i] = p.Y; PZ[i] = p.Z; PLON[i] = lon; PLAT[i] = lat; PV[i] = v; PR[i] = Math.random(); PCI[i] = c; });
 PT.length = 0;
 // baldes de pontos (cada balde é desenhado de uma vez): trás, aceso, sob o mouse; depois 3 profundidades e 3 níveis de calor,
 // cada um em 4 níveis de luz (DIA E NOITE: o lado da noite fica com ~40% do brilho, com uma passagem suave na linha do dia)
 const NLUZ = 4, LUZ_F = [0.4, 0.58, 0.78, 1], LUZ_FC = [0.62, 0.74, 0.87, 1];     // calor apaga menos à noite (continua legível)
-const BALDES = Array.from({ length: 3 + 6 * NLUZ }, () => ({ a: new Float32Array(NP * 2), n: 0 }));
-const COR_PROF = [[22, 163, 74, 0.5, 0.78], [74, 222, 128, 0.66, 0.84], [187, 247, 208, 0.9, 0.9]];      // r, g, b, alfa, tamanho
+const BALDES = Array.from({ length: 3 + 9 * NLUZ }, () => ({ a: new Float32Array(NP * 2), n: 0 }));   // (+3 profundidades de cidade)
+const B_CID = 3 + 6 * NLUZ;                     // primeiro balde dos pontos de cidade
+// terra: mais apagada e mais fina que antes (13/11/2026), para as cidades aparecerem; cidade: clara, quase branca de frente
+const COR_PROF = [[22, 163, 74, 0.38, 0.5], [74, 222, 128, 0.5, 0.55], [134, 239, 172, 0.66, 0.6]];     // r, g, b, alfa, tamanho
 const COR_PROF_TXT = COR_PROF.map(([r, g, b, a]) => LUZ_F.map(f => `rgba(${r},${g},${b},${(a * f).toFixed(3)})`));
+const COR_CID = [[134, 239, 172, 0.62, 0.6], [187, 247, 208, 0.82, 0.66], [240, 253, 244, 0.95, 0.72]];
+const COR_CID_TXT = COR_CID.map(([r, g, b, a]) => LUZ_F.map(f => `rgba(${r},${g},${b},${(a * Math.max(0.55, f)).toFixed(3)})`));   // cidade acesa à noite
 const COR_CALOR_PT = [null, [250, 204, 21, 0.62, 0.88], [251, 146, 60, 0.82, 0.94]];
 const COR_CALOR_TXT = COR_CALOR_PT.map(c => c && LUZ_FC.map(f => `rgba(${c[0]},${c[1]},${c[2]},${(c[3] * f).toFixed(3)})`));
 // nível de luz de cada ponto (0 noite … 3 dia): calculado 1 vez por minuto pela posição do Sol
@@ -745,7 +843,7 @@ function desenharGlobo(t, dt) {
       x = fx0 + (x - fx0) * e; y = fy0 + (y - fy0) * e; z = 1 - e * (1 - z);
     }
     let b;
-    if (z < 0) { if ((i & 1) || modoLeve) continue; b = bT; }     // lado de trás: metade dos pontos (nenhum no modo leve)
+    if (z < 0) { if ((i & 1) || modoLeve || PCI[i]) continue; b = bT; }     // lado de trás: metade dos pontos de terra (nenhum no modo leve)
     else if (PV[i] === fv && X * fp.X + Y * fp.Y + Z * fp.Z > fc) {
       if (e >= 1 && H > 0.001) {                          // base, topo levantado e a força da onda neste ponto
         const f = Math.min(1, (X * fp.X + Y * fp.Y + Z * fp.Z - fc) / 0.1);
@@ -758,10 +856,10 @@ function desenharGlobo(t, dt) {
     }
     else if (PV[i] === hoverV) b = bH;
     else if (calorLigado && CALOR_V[PV[i]] && z > 0.12) b = BALDES[3 + 3 * NLUZ + (CALOR_V[PV[i]] - 1) * NLUZ + LUZ[i]];
-    else b = BALDES[3 + (z > 0.62 ? 2 : z > 0.3 ? 1 : 0) * NLUZ + LUZ[i]];
+    else b = BALDES[(PCI[i] ? B_CID : 3) + (z > 0.62 ? 2 : z > 0.3 ? 1 : 0) * NLUZ + LUZ[i]];
     b.a[b.n++] = x; b.a[b.n++] = y;
   }
-  pontosBalde(bT, 'rgba(34,197,94,.10)', 0.75 * k);
+  pontosBalde(bT, 'rgba(34,197,94,.09)', 0.6 * k);
   if (e > 0.3) {
     gh.globalAlpha = (e - 0.3) / 0.7; gh.lineWidth = 0.6; gh.strokeStyle = 'rgba(74,222,128,.075)';
     MERIDIANOS.forEach(l => linhaGlobo(l, cA, sA, o)); PARALELOS.forEach(l => linhaGlobo(l, cA, sA, o));
@@ -770,6 +868,7 @@ function desenharGlobo(t, dt) {
   // verde fósforo (Matrix): mais escuro na borda, quase branco de frente (no mergulho ficam apagadinhos, de fundo)
   gh.globalAlpha = 1 - 0.6 * zoom.k;
   for (let d = 0; d < 3; d++) for (let l = 0; l < NLUZ; l++) pontosBalde(BALDES[3 + d * NLUZ + l], COR_PROF_TXT[d][l], COR_PROF[d][4] * k);
+  for (let d = 0; d < 3; d++) for (let l = 0; l < NLUZ; l++) pontosBalde(BALDES[B_CID + d * NLUZ + l], COR_CID_TXT[d][l], COR_CID[d][4] * k);   // cidades
   // calor: amarelo (morno), laranja (quente) e vermelho pulsando (fervendo); à noite apaga menos que o resto
   const fq = calmo ? 0.9 : 0.74 + 0.22 * Math.sin(t * 3.2);
   for (let l = 0; l < NLUZ; l++) {
@@ -839,7 +938,16 @@ function desenharGlobo(t, dt) {
     }
     if (u > 1.4) { arcos.splice(arcos.indexOf(a), 1); novoArco(rnd(0, 0.8)); }
   }
-  gh.strokeStyle = 'rgba(74,222,128,.26)'; gh.lineWidth = 1; gh.beginPath(); gh.arc(gx, gy, r, 0, TAU); gh.stroke();
+  // ATMOSFERA (13/11/2026): a borda do globo brilha, como no app de rádio que o dono mostrou: um anel de luz em r
+  // que apaga para dentro e para fora (no modo leve, só a linha)
+  if (!modoLeve) {
+    const atm = gh.createRadialGradient(gx, gy, r * 0.93, gx, gy, r * 1.14);
+    atm.addColorStop(0, 'rgba(74,222,128,0)'); atm.addColorStop(0.2, 'rgba(74,222,128,.07)'); atm.addColorStop(0.33, 'rgba(134,239,172,.36)');
+    atm.addColorStop(0.42, 'rgba(74,222,128,.15)'); atm.addColorStop(1, 'rgba(74,222,128,0)');
+    gh.fillStyle = atm; gh.beginPath(); gh.arc(gx, gy, r * 1.14, 0, TAU); gh.arc(gx, gy, r * 0.93, 0, TAU, true); gh.fill();
+  }
+  gh.strokeStyle = 'rgba(167,243,208,.5)'; gh.lineWidth = 1.2; gh.beginPath(); gh.arc(gx, gy, r, 0, TAU); gh.stroke();
+  desenharSatelite(t, gx, gy, r);
   if (!calmo && !modoLeve) {                                 // varredura prateada descendo
     const yv = gy - r + ((t * 0.07) % 1) * 2 * r;
     gh.save(); gh.beginPath(); gh.arc(gx, gy, r, 0, TAU); gh.clip();
@@ -1041,6 +1149,49 @@ function mostrarAlertas() {
   }));
 }
 // marcador: pontinho verde, rastro do salto, pulsos e a linha até o pop-up
+// ---------- PIXEL ART (13/11/2026): satélite orbitando o globo e disco voador marcando o país da visita ----------
+// Desenhos em pixel (# corpo, o vidro/antena, l luzes que piscam), pintados uma vez num canvas pequeno (passam pelo
+// motor de cor) e colados sem suavizar, num tamanho em que cada pixel do desenho cai inteiro nos pixels da tela.
+const SPRITES = {
+  ovni: ['.....ooooo.....', '...ooooooooo...', '..###########..', '.#############.', '#l##l##l##l##l#', '.#############.', '...#########...'],
+  sat: ['###.......###', '###...o...###', '###..###..###', '#############', '###..###..###', '###...o...###', '###.......###'],
+};
+const cacheSprite = new Map();
+function sprite(nome, quadro) {
+  const chave = nome + quadro + '|' + TEMA.h + ',' + TEMA.s;
+  let cv = cacheSprite.get(chave); if (cv) return cv;
+  const linhas = SPRITES[nome]; cv = document.createElement('canvas'); cv.width = linhas[0].length; cv.height = linhas.length;
+  const c = cv.getContext('2d');
+  linhas.forEach((l, j) => [...l].forEach((ch, i) => {
+    const cor = ch === '#' ? '#4ADE80' : ch === 'o' ? '#D1FAE5' : ch === 'l' ? (quadro ? '#FFFFFF' : '#14532D') : null;
+    if (cor) { c.fillStyle = cor; c.fillRect(i, j, 1, 1); }
+  }));
+  if (cacheSprite.size > 24) cacheSprite.clear();
+  cacheSprite.set(chave, cv); return cv;
+}
+function colarSprite(cv, x, y, px) {             // px = tamanho de cada pixel do desenho, em pixels da tela (inteiro)
+  const P = Math.max(1, Math.round(px * HDPR)) / HDPR, w = cv.width * P, h = cv.height * P;
+  gh.imageSmoothingEnabled = false;
+  gh.drawImage(cv, Math.round((x - w / 2) * HDPR) / HDPR, Math.round((y - h / 2) * HDPR) / HDPR, w, h);
+  gh.imageSmoothingEnabled = true;
+}
+// satélite: órbita inclinada em volta do globo (não gira com a Terra), uma volta a cada ~50 s; atrás do globo, some
+function desenharSatelite(t, gx, gy, r) {
+  if (modoLeve || zoom.k > 0.02 || globoE < 1) return;
+  const R = 1.3, inc = 0.38, cr = Math.cos(0.32), sr = Math.sin(0.32), a = calmo ? 0.9 : t * TAU / 50;
+  const pos = s => {                             // círculo inclinado (inc) e um pouco torto na tela (0,32 rad)
+    const x0 = Math.cos(s) * R, y0 = Math.sin(s) * R * Math.sin(inc), z = Math.sin(s) * R * Math.cos(inc);
+    return { x: x0 * cr - y0 * sr, y: x0 * sr + y0 * cr, z };
+  };
+  const atras = p => p.z < 0 && Math.hypot(p.x, p.y) < 1.02;
+  // o caminho da órbita, pontilhado e bem fraco (só a parte que não está atrás do globo)
+  gh.fillStyle = 'rgba(134,239,172,.16)';
+  for (let n = 0; n < 90; n++) { const p = pos(n / 90 * TAU); if (!atras(p)) gh.fillRect(gx + p.x * r - 0.6, gy - p.y * r - 0.6, 1.2, 1.2); }
+  const p = pos(a); if (atras(p)) return;
+  const x = gx + p.x * r, y = gy - p.y * r;
+  brilho(gh, x, y, 16, '#22C55E', 0.35);
+  colarSprite(sprite('sat', 0), x, y, 2 + (p.z > 0 ? 0.4 : 0));
+}
 function desenharMarcador(t) {
   const c = geo.cursor; if (!c || globoE < 1 || zoom.k > 0.02) return;
   const cA = Math.cos(giro), sA = Math.sin(giro), o = {}, k = GLOBO.r / 158;
@@ -1069,13 +1220,16 @@ function desenharMarcador(t) {
     if (k >= 1) { gh.fillStyle = cor; gh.fillRect(A.x - 1.5, A.y - 1.5, 3, 3); }
   }
   brilho(gh, x, y, 14 * k, '#22C55E', 0.6);
+  // DISCO VOADOR em pixel (13/11/2026, no lugar dos cantinhos): viaja na ponta do arco e, ao chegar, fica pairando
+  // sobre o país, balançando de leve, com as luzes piscando e um facho de luz até o ponto
+  const kk = Math.min(1.5, Math.max(0.9, k)), bob = calmo ? 0 : Math.sin(t * 2.4) * 2, hy = y - (u >= 1 ? 21 : 13) * kk + bob;
   if (u >= 1) {
-    const m = 9 * k; gh.strokeStyle = 'rgba(134,239,172,.9)'; gh.lineWidth = 1;
-    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      gh.beginPath(); gh.moveTo(x + dx * m - dx * 3.5, y + dy * m); gh.lineTo(x + dx * m, y + dy * m); gh.lineTo(x + dx * m, y + dy * m - dy * 3.5); gh.stroke();
-    }
+    const fx = gh.createLinearGradient(0, hy + 6, 0, y + 2);
+    fx.addColorStop(0, 'rgba(187,247,208,.32)'); fx.addColorStop(1, 'rgba(187,247,208,0)');
+    gh.fillStyle = fx; gh.beginPath(); gh.moveTo(x - 4, hy + 6); gh.lineTo(x + 4, hy + 6); gh.lineTo(x + 10 * kk, y + 2); gh.lineTo(x - 10 * kk, y + 2); gh.closePath(); gh.fill();
   }
-  gh.fillStyle = '#DCFCE7'; gh.beginPath(); gh.arc(x, y, 2.6, 0, TAU); gh.fill();
+  colarSprite(sprite('ovni', calmo ? 1 : Math.floor(t * 3) % 2), x, hy, 2);
+  gh.fillStyle = '#DCFCE7'; gh.beginPath(); gh.arc(x, y, 2.2, 0, TAU); gh.fill();
 }
 
 // ---------- Pings: anel que cresce do país quando chega notícia nova (como num radar) ----------
@@ -1234,6 +1388,9 @@ function abrirDetalhe(p) {
   let g0 = -p.lon * D2R; g0 += Math.round((giro - g0) / TAU) * TAU;          // gira até o país ficar de frente
   alvoGiro = { g: g0, i: Math.max(-0.3, Math.min(0.9, p.lat * D2R * 0.85)) };
   geo.estado = 'detalhe';
+  // o mapa dos estados é pedido ANTES das 15 buscas de notícias do painel (o navegador só abre 6 conexões por vez;
+  // atrás das notícias, o mapa demorava ~1 s e o mergulho chegava vazio)
+  carregarEstados(p.cod);
   montarPainel(p);
   entrarZoom(p);                       // e mergulha no país
 }
@@ -1382,6 +1539,7 @@ function montarPainel(p) {
 }
 addEventListener('keydown', ev => {      // Esc: do estado volta para o país; do país volta para o mundo
   if (ev.key !== 'Escape') return;
+  if (!corBox.hidden) { corBox.hidden = true; return; }         // a caixa de cor
   if (!ajudaEl.hidden) { ajudaEl.hidden = true; return; }       // primeiro a ajuda de teclas
   if (!foraBox.hidden) { fecharFora(); return; }                // depois o cartão "enquanto você estava fora"
   if (detalhe && detalhe.estado) voltarPais(); else { fecharDetalhe(); fecharVig(); fecharAo(); fecharRes(); }
@@ -1390,6 +1548,7 @@ addEventListener('keydown', ev => {      // Esc: do estado volta para o país; d
 // ---------- Mouse: arrastar gira, passar por cima mostra o nome, clicar abre o painel ----------
 const dicaEl = document.getElementById('dicaPais');
 let arrastando = null, giroVel = 0, inclVel = 0, interagiuEm = -99;
+const preCarga = { p: null, t: 0 };
 function posMouse(ev) { const r = gcv.getBoundingClientRect(); return [(ev.clientX - r.left) * HW / r.width, (ev.clientY - r.top) * HH / r.height]; }
 gcv.addEventListener('pointerdown', ev => {
   const [x, y] = posMouse(ev);
@@ -1419,6 +1578,8 @@ gcv.addEventListener('pointermove', ev => {
   const iE = zoom.ativo && zoom.k > 0.6 && h ? estadoEm(h.lon, h.lat) : -1;
   zoom.hover = iE;
   hoverV = h && h.p && !(zoom.ativo && zoom.p === h.p) ? h.p.v : -1;
+  // mouse parado num país: já vai buscando o mapa dos estados dele (o clique mergulha sem esperar)
+  if (h && h.p && h.p !== preCarga.p) { clearTimeout(preCarga.t); preCarga.p = h.p; preCarga.t = setTimeout(() => carregarEstados(h.p.cod), 250); }
   gcv.classList.toggle('sobre', hoverV >= 0 || iE >= 0);
   if (iE >= 0) {
     const e = zoom.dados.estados[iE];
@@ -1473,7 +1634,12 @@ function prepararEstados(d) {
   d.porArea = d.estados.map((_, i) => i).sort((i, j) => d.estados[j].area - d.estados[i].area);
   return d;
 }
-const larguraPainel = () => detalhe ? painelEl.offsetWidth + 28 : 0;
+// largura dos painéis, guardada (13/11/2026): ler offsetWidth a cada quadro obrigava o navegador a recalcular a página
+// inteira enquanto as notícias chegavam no painel, e o mergulho engasgava. O ResizeObserver avisa quando ela muda.
+const LARG = new Map();
+const roPaineis = new ResizeObserver(es => { for (const e of es) LARG.set(e.target, e.borderBoxSize && e.borderBoxSize[0] ? e.borderBoxSize[0].inlineSize : e.target.offsetWidth); });
+function largura(elm) { if (!LARG.has(elm)) { LARG.set(elm, elm.offsetWidth); roPaineis.observe(elm); } return LARG.get(elm); }
+const larguraPainel = () => detalhe ? largura(painelEl) + 28 : 0;
 function centroDoMergulho() { const esq = HW > 1100 ? 290 : 20, dir = HW - larguraPainel() - 24; return (esq + dir) / 2; }
 // raio do globo para o país (que ocupa "raio" graus) caber no espaço livre entre os filtros e o painel
 function raioDoMergulho(raio) {
@@ -1566,9 +1732,9 @@ gcv.addEventListener('wheel', ev => {           // rodinha: aproxima e afasta de
 // ---------- Quadro do globo (chamado pelo frame principal) ----------
 function heroFrame(t, dt) {
   if (document.hidden) return;
-  if (hero.clientWidth !== HW || hero.clientHeight !== HH) ajustarHero();
+  // (o tamanho da tela vem do ResizeObserver do hero; ler clientWidth aqui a cada quadro forçava recalcular a página)
   if (!HW || !fundoHero) return;
-  const alvoX = zoom.ativo ? centroDoMergulho() : detalhe || vigAberto || aoAberto || resAberto ? Math.max(GLOBO.r + 16, (HW - (detalhe ? painelEl : vigAberto ? vigEl : aoAberto ? aoEl : resEl).offsetWidth - 28) / 2) : HW / 2;
+  const alvoX = zoom.ativo ? centroDoMergulho() : detalhe || vigAberto || aoAberto || resAberto ? Math.max(GLOBO.r + 16, (HW - largura(detalhe ? painelEl : vigAberto ? vigEl : aoAberto ? aoEl : resEl) - 28) / 2) : HW / 2;
   GLOBO.x += (alvoX - GLOBO.x) * Math.min(1, dt * 5);
   GLOBO.y += ((zoom.ativo ? HH * 0.5 : HH * 0.52) - GLOBO.y) * Math.min(1, dt * 5);
   // mergulho: o raio do globo cresce (em escala logarítmica, para o movimento ficar suave) até o país encher a tela
@@ -1672,7 +1838,7 @@ function montarAjuda() {
   };
   grupo('ASSUNTOS', [...CATS.map(c => [c.tecla, c.nome]), ['T', 'tudo (todos os assuntos)'], ['Shift + 1', 'só esse assunto (Shift + a tecla dele)']]);
   grupo('PAINÉIS E TELA', [['V', '★ Vigiados: países e palavras que o Vigia confere sozinho'], ['A', 'Ao vivo: tudo das fontes rápidas (12 h)'], ['D', '☀ Resumo do dia'], ['N', '▶ TV ao vivo: os canais de notícia de cada país (janela à parte; com um país aberto, já no canal dele)'],
-    ['C', 'termômetro: liga/desliga as cores de calor'], ['/', 'buscar país'], ['L', 'modo leve (menos quadros, sem chuva Matrix)'], ['?', 'esta ajuda'],
+    ['C', 'termômetro: liga/desliga as cores de calor'], ['/', 'buscar país'], ['L', 'modo leve (menos quadros, sem chuva Matrix)'], ['K', 'cor da interface (motor de cor)'], ['?', 'esta ajuda'],
     ['Esc', 'fecha o que está aberto · do estado volta ao país, do país ao mundo']]);
   grupo('MOUSE', [['arrastar', 'gira o globo'], ['clique', 'num país: as notícias dele e o mergulho nos estados'], ['clique', 'num estado (mergulhado): as notícias do estado'],
     ['rodinha', 'aproxima e afasta no mergulho'], ['[JP]', 'marca na borda: gira o globo até o país'], ['+', 'no relógio do topo: põe a hora de outra cidade']]);
@@ -1693,6 +1859,7 @@ addEventListener('keydown', ev => {
   else if (ev.code === 'KeyD') resAberto ? fecharRes() : abrirRes();
   else if (ev.code === 'KeyN') abrirTV(paisDaTV());
   else if (ev.code === 'KeyL') alternarLeve();
+  else if (ev.code === 'KeyK') alternarCor();
   else if (ev.code === 'KeyC') alternarCalor();
   else if (ev.key === '/') { ev.preventDefault(); buscaEl.focus(); }
 });
@@ -2183,7 +2350,7 @@ function listaAo(doZero) {
     const v = ehVigiado(n);
     const li = el('li', [n.chegou > aoVistoAntes && aoVistoAntes ? 'novo' : '', v ? 'vig' : ''].join(' ').trim()), cx = el('div'), tags = el('div', 'tags');
     // chegou agora: realce verde que apaga em 3 s (no modo leve, sem realce)
-    if (novasAgora.includes(n) && !semMovimento()) efeito(3, k => { li.style.background = `rgba(74,222,128,${(0.2 * (1 - k)).toFixed(3)})`; }, () => { li.style.background = ''; });
+    if (novasAgora.includes(n) && !semMovimento()) efeito(3, k => { li.style.background = corTema(`rgba(74,222,128,${(0.2 * (1 - k)).toFixed(3)})`); }, () => { li.style.background = ''; });
     if (v) { const termo = termoNoTitulo(n.titulo) || (n.original && termoNoTitulo(n.original)); tags.append(el('span', 'tag vig', '★ ' + (termo ? termo.toUpperCase() : 'VIGIADO'))); }
     if (n.urgencia >= 3) tags.append(el('span', 'tag urg', 'URGENTE'));
     if (n.sobe) tags.append(el('span', 'tag sobe', '↑ SUBINDO'));
@@ -2448,8 +2615,11 @@ let ultimoQuadro = performance.now() / 1000, ultimoDesenho = 0, focado = documen
 addEventListener('focus', () => { focado = true; });
 addEventListener('blur', () => { focado = false; });
 addEventListener('pointermove', () => { mexeuAte = performance.now() + 2500; }, { passive: true });   // mouse por cima (mesmo sem foco): fica fluido
+let mouseNoGloboAte = 0;                // mouse passando pelo globo: 60 quadros (o realce do país acompanha o mouse sem engasgar)
+gcv.addEventListener('pointermove', () => { mouseNoGloboAte = performance.now() + 700; }, { passive: true });
+gcv.addEventListener('wheel', () => { mouseNoGloboAte = performance.now() + 900; }, { passive: true });
 function fpsAlvo() {
-  const animando = arrastando || (alvoGiro && alvoGiro.dur) || (zoom.ativo ? zoom.k < 1 || Math.abs(GLOBO.r - (zoom.rAlvo || GLOBO.r) * zoom.extra) > 2 : zoom.k > 0 || Math.abs(GLOBO.r - GLOBO.r0) > 1);
+  const animando = arrastando || (alvoGiro && alvoGiro.dur) || performance.now() < mouseNoGloboAte || (zoom.ativo ? zoom.k < 1 || Math.abs(GLOBO.r - (zoom.rAlvo || GLOBO.r) * zoom.extra) > 2 : zoom.k > 0 || Math.abs(GLOBO.r - GLOBO.r0) > 1);
   if (animando) return 60;
   const ativo = focado || performance.now() < mexeuAte || location.hash.includes('foco');   // #foco: para medir como se estivesse em uso
   return modoLeve ? (ativo ? 20 : 6) : (ativo ? 30 : 12);
@@ -2490,6 +2660,40 @@ function animacoesPequenas(t, dt) {
   foraTick(t);
   if (t > proxGlitch && !calmo) { tituloEl.classList.add('glitch'); setTimeout(() => tituloEl.classList.remove('glitch'), 500); proxGlitch = t + 7; }
 }
+// ---------- Caixa do motor de cor (tecla K / botão 🎨) ----------
+const corBox = document.getElementById('corBox'), corMatiz = document.getElementById('corMatiz');
+const CORES = [['Verde', 142, 1], ['Ciano', 188, 1], ['Azul', 218, 1], ['Anil', 245, 1], ['Roxo', 275, 1], ['Rosa', 322, 1], ['Branco', 142, 0]];
+corMatiz.style.background = 'linear-gradient(90deg,' + Array.from({ length: 13 }, (_, i) => `hsl(${i * 30},75%,58%)`).join(',') + ')';
+function montarCores() {
+  const box = document.getElementById('corAmostras'); box.replaceChildren();
+  for (const [nome, h, s] of CORES) {
+    const b = el('button'); b.type = 'button'; b.title = nome; b.style.background = s ? `hsl(${h},70%,60%)` : '#E5E7EB';
+    if (Math.abs(TEMA.h - h) < 1 && TEMA.s === s) b.className = 'on';
+    b.onclick = () => mudarCor(h, s); box.append(b);
+  }
+  corMatiz.value = TEMA.h;
+  const c = CORES.find(([, h, s]) => Math.abs(TEMA.h - h) < 1 && TEMA.s === s);
+  document.getElementById('corNome').textContent = c ? c[0] : `matiz ${Math.round(TEMA.h)}°`;
+}
+let corPendente = null, corAgendada = false;
+function mudarCor(h, s) {                 // (o arrastar da barra junta as mudanças num quadro só)
+  corPendente = [h, s];
+  if (corAgendada) return;
+  corAgendada = true;
+  requestAnimationFrame(() => {
+    const [hh, ss] = corPendente; corPendente = null; corAgendada = false;
+    TEMA.h = hh; TEMA.s = ss; aplicarTema();
+    try { localStorage.setItem('vigia.cor', JSON.stringify(TEMA)); } catch { }
+    ajustarHero(); cc.clearRect(0, 0, chuvaCv.width, chuvaCv.height);           // fundo do globo e chuva já na cor nova
+    montarChips(); mostrarFiltro(); for (const x of document.querySelectorAll('.selo')) pintarSelo(x);
+    montarCores();
+  });
+}
+corMatiz.oninput = () => mudarCor(+corMatiz.value, 1);
+document.getElementById('corPadrao').onclick = () => mudarCor(COR_BASE, 1);
+function alternarCor() { corBox.hidden = !corBox.hidden; if (!corBox.hidden) montarCores(); }
+document.getElementById('corBtn').onclick = alternarCor;
+
 function alternarLeve() {
   modoLeve = !modoLeve;
   try { localStorage.setItem('vigia.leve', modoLeve ? '1' : '0'); } catch { }

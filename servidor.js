@@ -16,7 +16,7 @@ const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.png': 'image/png', '.ico': 'image/x-icon', '.svg': 'image/svg+xml',
 };
-const PUBLICOS = new Set(['/vigia-global.html', '/tv.html', '/icone.svg', '/icone.png', '/icone.ico']);
+const PUBLICOS = new Set(['/vigia-global.html', '/tv.html', '/cidades.js', '/icone.svg', '/icone.png', '/icone.ico']);
 function json(res, code, obj) { res.writeHead(code, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); }
 // só a própria janela do Vigia pode pedir para abrir links (nenhum site de fora)
 const ORIGENS = new Set([`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`]);
@@ -26,6 +26,17 @@ function estadosDe(cod) {
   if (!/^[A-Z]{2}$/.test(cod)) return new Set();
   if (!ESTADOS.has(cod)) { try { ESTADOS.set(cod, new Set(JSON.parse(fs.readFileSync(path.join(ROOT, 'estados', cod + '.json'), 'utf8')).estados.map(e => e.nome))); } catch { ESTADOS.set(cod, new Set()); } }
   return ESTADOS.get(cod);
+}
+// enquadramento de cada país (centro e raio, dos estados/XX.json): a janela usa para a câmera mergulhar na hora do clique
+let QUADROS = null;
+function quadros() {
+  if (QUADROS) return QUADROS;
+  QUADROS = {};
+  for (const f of fs.readdirSync(path.join(ROOT, 'estados'))) {
+    const m = /^([A-Z]{2})\.json$/.exec(f); if (!m) continue;
+    try { const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'estados', f), 'utf8')); QUADROS[m[1]] = [d.centro[0], d.centro[1], d.raio]; } catch { }
+  }
+  return QUADROS;
 }
 function lerCorpo(req, max) {
   return new Promise((ok, erro) => {
@@ -42,6 +53,7 @@ http.createServer(async (req, res) => {
     if (rel === '/api/saude') return json(res, 200, { ok: true, app: 'vigia-global', assuntos: Object.keys(CATEGORIAS), brave: !!caminhoBrave() });
     // Termômetro: manchetes das últimas 24 h por país e assunto
     if (rel === '/api/calor') return json(res, 200, calor.dados());
+    if (rel === '/api/quadros') return json(res, 200, quadros());
     // Plantão: faixa "ao vivo", plantões e estado das fontes rápidas. ?p=BR = o que chegou desse país
     // AO VIVO: tudo o que as fontes rápidas trouxeram nas últimas 12 h
     if (rel === '/api/aovivo') return json(res, 200, plantao.lista());
@@ -98,7 +110,8 @@ http.createServer(async (req, res) => {
   // Arquivos da janela (só os públicos) e os mapas de estados (estados/BR.json)
   if (rel === '/') rel = '/vigia-global.html';
   if (rel === '/tv') rel = '/tv.html';
-  if (/^\/estados\/[A-Z]{2}\.json$/.test(rel)) {
+  // (relevo/XX.json e relevo/mundo.json: as curvas de nível do globo topográfico)
+  if (/^\/(estados\/[A-Z]{2}|relevo\/(?:[A-Z]{2}|mundo))\.json$/.test(rel)) {
     return fs.readFile(path.join(ROOT, rel), (err, data) => {
       if (err) { res.writeHead(404); return res.end('{}'); }
       res.writeHead(200, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'max-age=86400' }); res.end(data);
